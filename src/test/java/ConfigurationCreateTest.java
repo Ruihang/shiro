@@ -28,6 +28,7 @@ public class ConfigurationCreateTest {
 
         Assert.assertTrue(subject.isAuthenticated());
 
+
     }
 
 }
