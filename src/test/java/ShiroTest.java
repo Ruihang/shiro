@@ -1,11 +1,15 @@
+import org.apache.commons.beanutils.BeanUtilsBean;
+import org.apache.commons.beanutils.converters.AbstractConverter;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authc.AuthenticationException;
+import org.apache.shiro.authc.ExcessiveAttemptsException;
 import org.apache.shiro.authc.UnknownAccountException;
 import org.apache.shiro.authc.UsernamePasswordToken;
 import org.apache.shiro.authz.UnauthorizedException;
 import org.apache.shiro.authz.permission.WildcardPermission;
 import org.apache.shiro.config.IniSecurityManagerFactory;
 import org.apache.shiro.mgt.SecurityManager;
+import org.apache.shiro.realm.jdbc.JdbcRealm;
 import org.apache.shiro.subject.PrincipalCollection;
 import org.apache.shiro.subject.Subject;
 import org.apache.shiro.util.Factory;
@@ -92,7 +96,6 @@ public class ShiroTest {
         Subject subject = SecurityUtils.getSubject();
 
         PrincipalCollection principals = subject.getPrincipals();
-        principals.forEach(System.out::println);
         Assert.assertEquals(2, principals.asList().size());
     }
 
@@ -165,7 +168,7 @@ public class ShiroTest {
     }
 
     @Test
-    public void testWildcardPermission(){
+    public void testWildcardPermission() {
         login("classpath:shiro-permission.ini", "zhang", "123");
         subject().checkPermission("menu:view:1");
         subject().checkPermission(new WildcardPermission("menu:view:1"));
@@ -173,7 +176,6 @@ public class ShiroTest {
 
 
     //===
-
 
 
     @Test
@@ -191,5 +193,58 @@ public class ShiroTest {
 
         Assert.assertTrue(subject().isPermitted("menu:view"));//通过MyRolePermissionResolver解析得到的权限
     }
+
+
+    //===PasswordService
+    @Test
+    public void testPasswordService() {
+        login("classpath:shiro-passwordservice.ini", "wu", "123");
+    }
+
+    //===PasswordService
+    @Test
+    public void testPasswordServiceJdbc() {
+        login("classpath:shiro-jdbc-passwordservice.ini", "wu", "123");
+    }
+
+
+    @Test
+    public void testHashedCredentialsMatcher() {
+        BeanUtilsBean.getInstance().getConvertUtils().register(new EnumConverter(), JdbcRealm.SaltStyle.class);
+        login("classpath:shiro-jdbc-hashedCredentialsMatcher.ini", "liu", "123");
+    }
+
+    private class EnumConverter extends AbstractConverter {
+        @Override
+        protected String convertToString(final Object value) throws Throwable {
+            return ((Enum) value).name();
+        }
+
+        @Override
+        protected Object convertToType(final Class type, final Object value) throws Throwable {
+            return Enum.valueOf(type, value.toString());
+        }
+
+        @Override
+        protected Class getDefaultType() {
+            return null;
+        }
+    }
+
+    @Test
+    public void testRetryLimitHashedCredentialsMatcher() {
+        BeanUtilsBean.getInstance().getConvertUtils().register(new EnumConverter(), JdbcRealm.SaltStyle.class);
+        for (int i = 0; i < 6; i++) {
+            try {
+                login("classpath:shiro-retryLimitHashedCredentialsMatcher.ini", "liu", "1234");
+            } catch (ExcessiveAttemptsException e) {
+                System.out.println("登录失败次数超过5次");
+            } catch (AuthenticationException e) {
+                System.out.println("登录失败");
+            }
+        }
+
+    }
+
 
 }
